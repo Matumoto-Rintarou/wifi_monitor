@@ -1,0 +1,100 @@
+body {
+  font-family: "Noto Sans JP", sans-serif;
+  background-color: #121212; /* ダーク背景 */
+  margin: 0;
+  padding: 20px;
+  color: #ccc; /* 明るめグレー */
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #bbb; /* 柔らかいグレー */
+}
+
+.card {
+  background: #1e1e1e; /* ダークカード背景 */
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.card h2 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: #aaa; /* やわらかいグレー */
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 400px;
+  background-color: #262626; /* 少し明るめダーク */
+}
+
+th, td {
+  border: 1px solid #444; /* ダークな枠線 */
+  padding: 8px 12px;
+  text-align: center;
+  color: #ccc;
+}
+
+th {
+  background-color: #444; /* ダークグレー */
+  color: #ddd;
+}
+
+/* プロトコル円グラフの表示幅を制限 */
+.protocol-chart-container {
+  max-width: 630px;
+  margin: 0 auto;
+}
+
+/* カード同士の間隔 */
+.card {
+  margin-bottom: 30px;
+}
+
+/* セレクトボックスのスタイル */
+select, label {
+  color: #ccc;
+  font-weight: 600;
+}
+
+select {
+  background-color: #333;
+  border: 1px solid #555;
+  padding: 5px 10px;
+  border-radius: 4px;
+  outline: none;
+}
+
+/* セレクトボックスホバーとフォーカス */
+select:hover, select:focus {
+  border-color: #888;
+  background-color: #222;
+  color: #eee;
+  cursor: pointer;
+}
+
+/* メディアクエリ */
+@media (max-width: 600px) {
+  .card {
+    padding: 10px;
+  }
+  h1 {
+    font-size: 1.5rem;
+  }
+}

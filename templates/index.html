@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>📡 Wi-Fi Monitoring Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>📡 Wi‑Fi Monitoring Dashboard</h1>
+
+    <!-- Wi-Fi情報 -->
+    <div id="wifi-info" style="margin: 15px 0; font-weight: bold; font-size: 1.1em;">
+      接続中のWi-Fi: {{ wifi_name }}
+    </div>
+
+    <!-- 時間切り替えプルダウン -->
+    <div style="text-align:center; margin-bottom:20px;">
+      <label for="timeRangeSelect">表示時間範囲：</label>
+      <select id="timeRangeSelect" onchange="loadData(this.value)">
+        <option value="10">過去10分</option>
+        <option value="60" selected>過去1時間</option>
+        <option value="1440">過去24時間</option>
+      </select>
+    </div>
+    
+    <!-- 時間別通信量 -->
+    <div class="card">
+      <h2>📈 時間別通信量 (10分単位)</h2>
+      <canvas id="trafficOverTimeChart"></canvas>
+    </div>
+
+    <!-- プロトコル別通信量 -->
+    <div class="card protocol-chart-container">
+      <h2>📊 プロトコル別通信量</h2>
+      <canvas id="protocolChart"></canvas>
+    </div>
+
+    <!-- 端末別通信量 -->
+    <div class="card">
+      <h2>💻 端末別通信量（上位送信元）</h2>
+      <div class="table-wrapper">
+        <table id="deviceTable">
+          <thead>
+            <tr>
+              <th>IPアドレス</th>
+              <th>通信量 (bytes)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 通信ログ -->
+    <div class="card">
+      <h2>📜 通信ログ（最新通信）</h2>
+      <div class="table-wrapper">
+        <table id="trafficLogTable">
+          <thead>
+            <tr>
+              <th>タイムスタンプ</th>
+              <th>送信元IP</th>
+              <th>宛先IP</th>
+              <th>プロトコル</th>
+              <th>通信サイズ (bytes)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
