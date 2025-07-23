@@ -44,9 +44,9 @@ class PacketDB:
                 self.flush()
 
     def flush(self):
-        if not self.buffer:
-            return
         with self.lock:
+            if not self.buffer:
+                return
             print(f"[{threading.current_thread().name}] [INFO] flush: バッファ書き込み開始", flush=True)
             cursor = self.conn.cursor()
             try:
@@ -63,26 +63,31 @@ class PacketDB:
                 cursor.close()
 
     def delete_old_records(self):
-        start_time = datetime.now()
         thread_name = threading.current_thread().name
-        cutoff_time = (start_time - timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
-        with self.lock:
-            print(f"[{thread_name}] delete_old_records: ロック取得 @ {start_time}", flush=True)
-            cursor = self.conn.cursor()
-            try:
+        cutoff_time = (datetime.now() - timedelta(hours=24)).strftime('%Y-%m-%d %H:%M:%S')
+
+        try:
+            # ロックは最小限に分割
+            with self.lock:
+                print(f"[{thread_name}] delete_old_records: ロック取得、削除対象件数を取得中...", flush=True)
+                cursor = self.conn.cursor()
                 cursor.execute('SELECT COUNT(*) FROM packets WHERE timestamp < ?', (cutoff_time,))
                 count = cursor.fetchone()[0]
+                cursor.close()
                 print(f"[{thread_name}] 削除対象件数: {count}", flush=True)
-                if count > 0:
+
+            if count > 0:
+                with self.lock:
+                    print(f"[{thread_name}] 古いデータの削除を開始します。", flush=True)
+                    cursor = self.conn.cursor()
                     cursor.execute('DELETE FROM packets WHERE timestamp < ?', (cutoff_time,))
                     self.conn.commit()
+                    cursor.close()
                     print(f"[{thread_name}] {count} 件の古いデータを削除しました。", flush=True)
-                else:
-                    print(f"[{thread_name}] 削除対象データはありません。", flush=True)
-            except Exception as e:
-                print(f"[{thread_name}] [ERROR] delete_old_records中にエラー発生: {e}", flush=True)
-            finally:
-                cursor.close()
+            else:
+                print(f"[{thread_name}] 削除対象データはありません。", flush=True)
+        except Exception as e:
+            print(f"[{thread_name}] [ERROR] delete_old_records中にエラー発生: {e}", flush=True)
 
     def close(self):
         with self.lock:
@@ -117,9 +122,15 @@ def packet_callback(packet):
 
 def periodic_cleanup():
     while True:
+        print("[INFO] periodic_cleanup: スリープ開始", flush=True)
         time.sleep(DELETE_INTERVAL)
         print("[INFO] periodic_cleanup: 古いパケットデータを削除中...", flush=True)
         db.delete_old_records()
+
+def periodic_flush():
+    while True:
+        time.sleep(10)
+        db.flush()
 
 if __name__ == "__main__":
     db = PacketDB()
@@ -127,6 +138,10 @@ if __name__ == "__main__":
     # 削除スレッド開始
     cleanup_thread = threading.Thread(target=periodic_cleanup, daemon=True, name="CleanupThread")
     cleanup_thread.start()
+
+    # flushスレッド開始（バッファの溜まりすぎを防止）
+    flush_thread = threading.Thread(target=periodic_flush, daemon=True, name="FlushThread")
+    flush_thread.start()
 
     print("📡 パケットキャプチャを開始します... Ctrl+Cで停止", flush=True)
     try:
