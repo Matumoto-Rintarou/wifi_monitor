@@ -6,11 +6,34 @@ import threading
 from scapy.all import sniff
 from scapy.layers.inet import IP, TCP, UDP
 import os
+import subprocess
 
 DB_PATH = "data/captured_packets.db"
 app = Flask(__name__)
 socketio = SocketIO(app)
 os.makedirs("data", exist_ok=True)
+
+# Windowsで現在接続中のWi-Fi名を取得
+def get_connected_ssid():
+    try:
+        result = subprocess.run(
+            ['netsh', 'wlan', 'show', 'interfaces'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding='utf-8'
+        )
+        output = result.stdout
+        for line in output.splitlines():
+            line = line.strip()
+            if line.startswith("SSID") and not line.startswith("SSID name"):  # SSIDだけの行を取得
+                ssid = line.split(":", 1)[1].strip()
+                if ssid == "":
+                    return "未接続"
+                return ssid
+        return "未接続"
+    except Exception as e:
+        return "取得失敗"
 
 # --- データベース初期化 ---
 def init_db():
@@ -31,7 +54,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- パケット情報をデータベースに追加 ---
+# --- パケット情報をDBに保存 ---
 def save_packet(pkt_info):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -42,7 +65,7 @@ def save_packet(pkt_info):
     conn.commit()
     conn.close()
 
-# --- パケットキャプチャのコールバック関数 ---
+# --- パケットキャプチャのコールバック ---
 def packet_callback(packet):
     if IP in packet:
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -70,7 +93,7 @@ def packet_callback(packet):
 def start_packet_capture():
     sniff(prn=packet_callback, store=False)
 
-# --- データ取得エンドポイント ---
+# --- データ取得API ---
 @app.route('/api/data')
 def get_data():
     minutes = int(request.args.get('minutes', 60))
@@ -81,7 +104,6 @@ def get_data():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    # 時間別通信量（1分ごと）
     cursor.execute('''
         SELECT strftime('%Y-%m-%d %H:%M:00', timestamp) AS ts_minute,
                SUM(packet_size) AS total_size
@@ -92,7 +114,6 @@ def get_data():
     ''', (cutoff_str,))
     traffic = [{'timestamp': row['ts_minute'], 'total_size': row['total_size']} for row in cursor.fetchall()]
 
-    # プロトコル別通信量
     cursor.execute('''
         SELECT protocol, SUM(packet_size) AS total
         FROM packets
@@ -101,7 +122,6 @@ def get_data():
     ''', (cutoff_str,))
     protocols = {row['protocol']: row['total'] for row in cursor.fetchall()}
 
-    # 端末別通信量
     cursor.execute('''
         SELECT src_ip AS ip_address, SUM(packet_size) AS total_size
         FROM packets
@@ -112,7 +132,6 @@ def get_data():
     ''', (cutoff_str,))
     devices = [{'ip_address': row['ip_address'], 'total_size': row['total_size']} for row in cursor.fetchall()]
 
-    # 通信ログ（直近100件）
     cursor.execute('''
         SELECT timestamp, src_ip, dst_ip, protocol, packet_size
         FROM packets
@@ -130,18 +149,16 @@ def get_data():
         'traffic_log': logs
     })
 
-# --- トップページ（index.html） ---
+# --- トップページ ---
 @app.route('/')
 def index():
-    return render_template('index.html')
+    wifi_name = get_connected_ssid()
+    return render_template('index.html', wifi_name=wifi_name)
 
 # --- アプリ起動 ---
 if __name__ == '__main__':
     init_db()
-
-    # sniffを別スレッドで実行
     capture_thread = threading.Thread(target=start_packet_capture, daemon=True)
     capture_thread.start()
-
     print("✅ Flaskアプリとパケットキャプチャを起動中...")
     socketio.run(app, host='0.0.0.0', port=5000)
